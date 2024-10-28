@@ -270,13 +270,19 @@ public abstract class AbstractSolutionRepository<C extends Enum<C> & CategoryJav
         return new SubmitResult.Success<>(result, null, beatenCategoryRecords);
     }
 
+    private @NotNull String makeArchiveLink(String @NotNull ... parts) {
+        return Arrays.stream(parts)
+                     .flatMap(p -> Arrays.stream(p.split("/")))
+                     .map(s -> URLEncoder.encode(s, StandardCharsets.UTF_8))
+                     .collect(Collectors.joining("/", getGitRepo().getRawFilesUrl() + "/", ""));
+    }
+
     @NotNull
     protected String commit(@NotNull GitRepository.ReadWriteAccess access, @NotNull Sub submission, @NotNull Path puzzlePath) {
         access.addAll(puzzlePath.toFile());
         String result = Stream.concat(access.status().getChanged().stream(),
                                       access.status().getAdded().stream())
-                              .map(f -> Markdown.link(f.replaceFirst(".+/", ""),
-                                                      getGitRepo().getRawFilesUrl() + "/" + URLEncoder.encode(f, StandardCharsets.UTF_8)))
+                              .map(f -> Markdown.link(f.replaceFirst(".+/", ""), makeArchiveLink(f)))
                               .collect(Collectors.joining(", "));
         RevCommit rev = access.commit("Added " + submission.getScore().toDisplayString() +
                                       " for " + submission.getPuzzle().getDisplayName() +
@@ -455,7 +461,6 @@ public abstract class AbstractSolutionRepository<C extends Enum<C> & CategoryJav
     protected abstract Path makeArchivePath(@NotNull Path puzzlePath, S score);
 
     protected String makeArchiveLink(@NotNull P puzzle, @NotNull String filename) {
-        return URLEncoder.encode(String.format("%s/%s/%s", getGitRepo().getRawFilesUrl(), relativePuzzlePath(puzzle), filename),
-                                 StandardCharsets.UTF_8);
+        return makeArchiveLink(relativePuzzlePath(puzzle).toString(), filename);
     }
 }
